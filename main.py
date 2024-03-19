@@ -21,7 +21,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-aai.settings.api_key = "13910991857543d796cff5baf3cf8ae0"
+aai.settings.api_key = "ASSEMBLY_API_KEY"
 
 prompt = """Based on the following context items, please summarise the query as comprehensive and as in-depth as possible. 
 Ensure that you cover everything important discussed in the video and provide as long of a summary as you need (I suggest around 1000 words if possible).
