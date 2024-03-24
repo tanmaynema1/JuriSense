@@ -18,23 +18,11 @@ from langchain.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 
-
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-aai.settings.api_key = "13910991857543d796cff5baf3cf8ae0"
+aai.settings.api_key = os.getenv("ASSEMBLY_API_KEY")
 
-prompt = """Based on the following context items, please summarise the query as comprehensive and as in-depth as possible. 
-Ensure that you cover everything important discussed in the video and provide as long of a summary as you need (I suggest around 1000 words if possible).
-Make sure your answers are as explanatory as possible:
 
-"""
-
-questionnaire_prompt = """Based on the following transcript, give five questions and answers. 
-                            The answers should be very detailed and they should start from a new line"""
-                            
-questionnaire_prompt2 = """Create 5 questions on the data from the transcript and 
-                            generate their answers(in 100 words) as well from both the video's transcript content as well as the vectorstore. The answers should be very detailed and they should start from a new line."""
-                            
 def get_pdf_text(pdf):
     text = ""
     
@@ -88,7 +76,7 @@ def generate_gemini_content(transcript_text, prompt):
     
     return response.text
 
-def questionnaire_content(transcript_text, questionnaire_prompt2, vectorstore):
+def questionnaire_content(transcript_text, prompt_questionnaire, vectorstore):
     safety_settings = [
     {
         "category": "HARM_CATEGORY_DANGEROUS",
@@ -112,7 +100,7 @@ def questionnaire_content(transcript_text, questionnaire_prompt2, vectorstore):
     },
     ]
     model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(questionnaire_prompt2+transcript_text, safety_settings=safety_settings)
+    response = model.generate_content(prompt_questionnaire+transcript_text, safety_settings=safety_settings)
     
     return response.text
 
@@ -239,7 +227,7 @@ def clickable_images_with_titles(thumbnails, titles):
         st.markdown("<style> .stContainer { margin-bottom: 20px; } </style>", unsafe_allow_html=True)  # Add space between rows
     return selected
 
-st.title("JuriSense 🎥")
+st.title("JuriSense 🎥", anchor=False)
 
 st.markdown("#### What is JuriSense?")
 st.markdown("JuriSense is a platform that implements Corrective Retrieval Augmented Generation (RAG) platform. It is designed to generate Video Notes, Summaries, and Questionnaires from YouTube videos and PDF documents, with a focus on the field of Criminal Law.")
@@ -281,6 +269,21 @@ else:
     file = st.file_uploader("Upload a file that includes the links (.txt)")
 
 if file is not None:
+
+    prompt = """Based on the following context items, please summarise the query as comprehensive and as in-depth as possible. 
+Ensure that you cover everything important discussed in the video and provide as long of a summary as you need (I suggest around 1000 words if possible).
+Make sure your answers are as explanatory as possible:
+
+    """
+
+    questionnaire_prompt = """Based on the following transcript, give five questions and answers. 
+                            The answers should be very detailed and they should start from a new line
+    """
+
+    prompt_questionnaire = """Create 5 questions on the data from the transcript and 
+                            generate their answers(in 100 words) as well from both the video's transcript content as well as the vectorstore. The answers should be very detailed and they should start from a new line.
+    """
+
     dataframe = pd.read_csv(file, header=None)
     dataframe.columns = ['urls']
     urls_list = dataframe['urls'].tolist()
