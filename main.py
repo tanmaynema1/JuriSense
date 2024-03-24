@@ -21,14 +21,17 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-aai.settings.api_key = "" #Add Assembly API Key
+aai.settings.api_key = "13910991857543d796cff5baf3cf8ae0"
 
 prompt = """Based on the following context items, please summarise the query as comprehensive and as in-depth as possible. 
 Ensure that you cover everything important discussed in the video and provide as long of a summary as you need (I suggest around 1000 words if possible).
 Make sure your answers are as explanatory as possible:
 
 """
-                
+
+questionnaire_prompt = """Based on the following transcript, give five questions and answers. 
+                            The answers should be very detailed and they should start from a new line"""
+                            
 questionnaire_prompt2 = """Create 5 questions on the data from the transcript and 
                             generate their answers(in 100 words) as well from both the video's transcript content as well as the vectorstore. The answers should be very detailed and they should start from a new line."""
                             
@@ -223,20 +226,44 @@ def get_analysis_results(polling_endpoint):
 def clickable_images_with_titles(thumbnails, titles):
     selected = -1
     num_videos = len(thumbnails)
-    num_rows = num_videos // 3 + (num_videos % 3 > 0)  
+    num_rows = num_videos // 3 + (num_videos % 3 > 0)  # Calculate the number of rows needed
     for row in range(num_rows):
         with st.container():
-            col1, col2, col3 = st.columns(3) 
+            col1, col2, col3 = st.columns(3)  # Create three columns in each row
             for col, index in zip([col1, col2, col3], range(row * 3, min((row + 1) * 3, num_videos))):
                 thumbnail = thumbnails[index]
                 title = titles[index]
                 col.image(thumbnail, caption='', use_column_width=True)
                 if col.button(f'### {title}', key=f'button{index}', help=f'imagebutton{index}'):
                     selected = index
-        st.markdown("<style> .stContainer { margin-bottom: 20px; } </style>", unsafe_allow_html=True)  
+        st.markdown("<style> .stContainer { margin-bottom: 20px; } </style>", unsafe_allow_html=True)  # Add space between rows
     return selected
 
 st.title("JuriSense 🎥")
+
+st.markdown("#### What is JuriSense?")
+st.markdown("JuriSense is a platform that implements Corrective Retrieval Augmented Generation (RAG) platform. It is designed to generate Video Notes, Summaries, and Questionnaires from YouTube videos and PDF documents, with a focus on the field of Criminal Law.")
+
+# Highlighted Features
+st.markdown("#### Why JuriSense is a Game-Changer?")
+st.markdown("1. **Audio Generation:** Generate audio clips from the video contents.")
+st.markdown("2. **Automated Transcript Generation:** 🤖 JuriSense uses advanced algorithms to accurately convert video content into text, saving you time and effort.")
+st.markdown("3. **Comprehensive Video Summaries:** 📑 Dive deeper into the content with detailed summaries, allowing you to quickly grasp the essence of each video.")
+st.markdown("4. **Questionnaire Generation:** 📝 Create questionnaires based on the video contents, making it easy to test your understanding.")
+
+st.markdown("#### Key Features")
+st.markdown("- **Efficient Study Material Creation:** ⏱️ JuriSense automates the process of generating study materials, saving time for students, researchers, educators, and professionals.")
+st.markdown("- **Extensive Coverage:** 📚 Criminal Law is a complex field, encompassing statutes, regulations, precedents, and legal principles. JuriSense organizes this vast amount of information into concise and structured notes.")
+st.markdown("- **Ethical Standards:** 🤝 JuriSense upholds ethical standards by providing accurate and reliable information, ensuring that users can trust the generated study materials.")
+st.markdown("- **Accessibility:** 🌍 JuriSense is accessible to users across diverse contexts and jurisdictions, making it a valuable tool for anyone navigating legal content.")
+
+# How It Works
+st.markdown("#### How It Works:")
+st.write("1. **Upload Video Links:** Upload a text file containing the YouTube video links of any channel you wish to assess.")
+st.write("2. **Generate Insights:** Click on any thumbnail to gain access to a wealth of information, including video summaries, transcripts, and questionnaires regarding the selected video.")
+
+# Call to Action
+st.markdown("Ready to optimize your study materials? Try JuriSense today!")
 
 default_bool = st.checkbox("Use a default file")
 
@@ -263,6 +290,7 @@ if file is not None:
     thumbnails = []
 
     for video_url in urls_list:
+        # download audio
         video_title, save_location, video_thumbnail = save_audio(video_url)
         if video_title:
             titles.append(video_title)
@@ -279,14 +307,20 @@ if file is not None:
         st.header(video_title)
         st.audio(save_location)
 
+        # upload mp3 file to AssemblyAI
         audio_url, error = upload_to_AssemblyAI(save_location)
         
         if error:
             st.write(error)
         else:
+            # start analysis of the file
+            #polling_endpoint, error = start_analysis(audio_url)
+
             if error:
                 st.write(error)
             else:
+                # receive the results
+                #results = get_analysis_results(polling_endpoint)
                 transcript = transcriber.transcribe(audio_url, config)
 
                 print(transcript.text)
@@ -303,7 +337,7 @@ if file is not None:
                     summary = generate_gemini_content(transcript_text,prompt)
                     st.write(summary)
                     
-                questionnaire = questionnaire_content(transcript_text, questionnaire_prompt2, vectorstore)
+                questionnaire = questionnaire_content(transcript_text, questionnaire_prompt, vectorstore)
                 
                 with questionnaire_tab:
                     st.header("Questionnaire:")
