@@ -16,6 +16,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from PyPDF2 import PdfReader
 from langchain.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community import embeddings
 
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -23,12 +24,12 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 aai.settings.api_key = os.getenv("ASSEMBLY_API_KEY")
 
 
-def get_pdf_text(pdf):
+def get_pdf_text(pdf_docs):
     text = ""
-    
-    pdf_reader = PdfReader(pdf)
-    for page in pdf_reader.pages:
-        text += page.extract_text()
+    for pdf in pdf_docs:
+        pdf_reader = PdfReader(pdf)
+        for page in pdf_reader.pages:
+            text += page.extract_text()
     return text
 
 
@@ -44,8 +45,11 @@ def get_text_chunks(text):
 
 
 def get_vectorstore(text_chunks):
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
+    if text_chunks is not None and text_chunks:
+        embedding = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    else:
+        embedding = embeddings.ollama.OllamaEmbeddings(model='mistral')
+    vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embedding)
     return vectorstore
 
 def generate_gemini_content(transcript_text, prompt):
@@ -255,14 +259,15 @@ st.markdown("Ready to optimize your study materials? Try JuriSense today!")
 
 default_bool = st.checkbox("Use a default file")
 
-pdf_doc = "13law-of-crimes-I.pdf"
-raw_text = get_pdf_text(pdf_doc)
+pdf_docs = ["13law-of-crimes-I.pdf", "Criminal-Law-1614009746.pdf", "Timor-Leste-Criminal-Law.pdf"]
+raw_text = get_pdf_text(pdf_docs)
 
 # get the text chunks
 text_chunks = get_text_chunks(raw_text)
-
+print(text_chunks)
 # create vector store
 vectorstore = get_vectorstore(text_chunks)
+
 if default_bool:
     file = open("./law.txt")
 else:
@@ -271,18 +276,13 @@ else:
 if file is not None:
 
     prompt = """Based on the following context items, please summarise the query as comprehensive and as in-depth as possible. 
-Ensure that you cover everything important discussed in the video and provide as long of a summary as you need (I suggest around 1000 words if possible).
-Make sure your answers are as explanatory as possible:
-
-    """
-
-    questionnaire_prompt = """Based on the following transcript, give five questions and answers. 
-                            The answers should be very detailed and they should start from a new line
-    """
+                Ensure that you cover everything important discussed in the video and provide as long of a summary as you need (I suggest around 1000 words if possible).
+                Make sure your answers are as explanatory as possible:
+                """
 
     prompt_questionnaire = """Create 5 questions on the data from the transcript and 
-                            generate their answers(in 100 words) as well from both the video's transcript content as well as the vectorstore. The answers should be very detailed and they should start from a new line.
-    """
+                              generate their answers(in 100 words) as well from both the video's transcript content as well as the vectorstore. The answers should be very detailed and they should start from a new line.
+                              """
 
     dataframe = pd.read_csv(file, header=None)
     dataframe.columns = ['urls']
@@ -310,20 +310,15 @@ Make sure your answers are as explanatory as possible:
         st.header(video_title)
         st.audio(save_location)
 
-        # upload mp3 file to AssemblyAI
         audio_url, error = upload_to_AssemblyAI(save_location)
         
         if error:
             st.write(error)
         else:
-            # start analysis of the file
-            #polling_endpoint, error = start_analysis(audio_url)
 
             if error:
                 st.write(error)
             else:
-                # receive the results
-                #results = get_analysis_results(polling_endpoint)
                 transcript = transcriber.transcribe(audio_url, config)
 
                 print(transcript.text)
@@ -340,7 +335,7 @@ Make sure your answers are as explanatory as possible:
                     summary = generate_gemini_content(transcript_text,prompt)
                     st.write(summary)
                     
-                questionnaire = questionnaire_content(transcript_text, questionnaire_prompt, vectorstore)
+                questionnaire = questionnaire_content(transcript_text, prompt_questionnaire, vectorstore)
                 
                 with questionnaire_tab:
                     st.header("Questionnaire:")
